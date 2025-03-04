@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Reverse the List of Integers - Puzzle Game</title>
+  <!--
+    Game Description:
+    "Reverse the List of Integers" starts with a list of unique positive integers.
+    The goal is to transform this list into its reverse (e.g., [7, 5, 3] → [3, 5, 7]).
+
+    Moves:
+    1) Split one integer into two smaller integers:
+       - Only enter the first new integer (A). The second (B) is automatically calculated as (original - A).
+    2) Combine two adjacent integers.
+
+    Restrictions:
+    • The newly formed integer must not exceed the largest integer from the original list.
+    • No duplicates are allowed in the list after any move.
+
+    Win Condition:
+    • You win if the current list matches the reversed list of the original integers.
+
+    This version:
+    - Lets you either generate a random list (by specifying size, min, max)
+      or manually enter a comma-separated custom list.
+    - Preserves each state in a history log, from top (initial) to bottom (most recent).
+    - Only the bottom row is active for new moves.
+    - Each state has a "Revert" button that removes all later states and makes
+      that state the active list for new moves.
+  -->
+  <style>
+/* Modern, sleek, and usable styling */
+:root {
+  --primary-color: #2c3e50;
+  --secondary-color: #ecf0f1;
+  --accent-color: #3498db;
+  --bg-gradient: linear-gradient(135deg, #bdc3c7, #2c3e50);
+  --border-radius: 6px;
+  --transition-speed: 0.3s;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg-gradient);
+  margin: 0;
+  padding: 20px;
+  color: var(--secondary-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+h1 {
+  margin-bottom: 10px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+p {
+  max-width: 600px;
+  line-height: 1.5;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+#setupContainer, #actionContainer {
+  background: rgba(44, 62, 80, 0.8);
+  padding: 15px 20px;
+  border-radius: var(--border-radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  margin-bottom: 20px;
+  width: 90%;
+  max-width: 600px;
+}
+
+label {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+input[type="number"],
+input[type="text"] {
+  border: none;
+  padding: 6px 8px;
+  border-radius: var(--border-radius);
+  margin-right: 5px;
+  width: 60px;
+  text-align: center;
+}
+
+input[type="text"] {
+  width: 200px;
+}
+
+button {
+  border: none;
+  padding: 8px 12px;
+  border-radius: var(--border-radius);
+  background-color: var(--accent-color);
+  color: var(--secondary-color);
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color var(--transition-speed), transform var(--transition-speed);
+  margin: 2px;
+}
+
+button:hover:not(.disabled-button) {
+  background-color: #2980b9;
+  transform: translateY(-1px);
+}
+
+button:active:not(.disabled-button) {
+  transform: translateY(0);
+}
+
+.disabled-button {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stateRow {
+  background: rgba(44, 62, 80, 0.7);
+  padding: 8px;
+  border-radius: var(--border-radius);
+  margin-bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.stateRow label {
+  margin-right: 10px;
+  min-width: 80px;
+}
+
+.integer-button {
+  min-width: 40px;
+}
+
+.revert-button {
+  background-color: #e74c3c;
+}
+
+.revert-button:hover {
+  background-color: #c0392b;
+}
+
+#winMessage {
+  font-size: 1.2em;
+  color: #27ae60;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+  margin-top: 10px;
+}
+
+  </style>
+</head>
+<body>
+  <h1>Reverse the List of Integers</h1>
+  <p>
+    1) Enter list size, min value, and max value to generate a random list, or provide a custom list of comma-separated integers.<br>
+    2) Click "Start Game" to see your initial list (and subsequent states).<br>
+    3) Each list state is shown from top (initial) to bottom (most recent). Only the bottom state is active for new moves.<br>
+    4) Click an integer in the bottom list to select it for splitting or combining.<br>
+    5) Use the "Revert" button on any state to discard all later states and make that state active again.<br>
+    Win by matching the reversed order of the initial list!
+  </p>
+
+  <!-- Setup form -->
+  <div id="setupContainer">
+    <label for="listSize">List Size (n):</label>
+    <input type="number" id="listSize" value="5" min="1" />
+
+    <label for="minVal">Min Value:</label>
+    <input type="number" id="minVal" value="1" min="1" />
+
+    <label for="maxVal">Max Value:</label>
+    <input type="number" id="maxVal" value="12" min="1" />
+
+    <div style="margin-top: 10px;">
+      <label for="customList">Custom List (comma separated):</label>
+      <input type="text" id="customList" placeholder="e.g. 2,5,9" />
+    </div>
+
+    <button id="startGameBtn">Start Game</button>
+  </div>
+
+  <!-- History of states -->
+  <div id="historyContainer"></div>
+
+  <div id="actionContainer" class="hidden">
+    <h2>Actions for Selected Integer</h2>
+    <!-- Split controls -->
+    <div id="splitSection">
+      <label>Split A:</label>
+      <input type="number" id="splitA" min="1" />
+      <label>B:</label>
+      <input type="number" id="splitB" min="1" readonly />
+      <button id="splitBtn">Split</button>
+    </div>
+
+    <!-- Combine controls -->
+    <div id="combineSection" style="margin-top: 10px;">
+      <button id="combineLeftBtn">Combine With Left Neighbor</button>
+      <button id="combineRightBtn">Combine With Right Neighbor</button>
+    </div>
+  </div>
+
+  <div id="winMessage"></div>
+
+  <script>
+    /**
+     * Class representing the puzzle logic for "Reverse the List of Integers."
+     */
+    class ReverseListGame {
+      /**
+       * Create a new game. You can either provide a customList or fallback to random generation.
+       * @param {number} listSize  - Number of integers to generate if no customList
+       * @param {number} minValue  - Minimum integer value for random generation
+       * @param {number} maxValue  - Maximum integer value for random generation
+       * @param {number[] | null} customList - If provided, it overrides the random generation
+       */
+      constructor(listSize, minValue, maxValue, customList) {
+        this.initialList = [];
+        this.maxOriginal = 0;
+        this.goalList    = [];
+
+        if (customList && customList.length > 0) {
+          // Use the user-specified list
+          this.initialList = [...customList];
+          this.maxOriginal = Math.max(...this.initialList);
+          this.goalList    = [...this.initialList].reverse();
+        } else {
+          // Generate a random unique list
+          this._initRandom(listSize, minValue, maxValue);
+        }
+      }
+
+      /**
+       * Initialize the game with random unique integers in [minValue, maxValue].
+       * @private
+       */
+      _initRandom(listSize, minValue, maxValue) {
+        const rangeSize = maxValue - minValue + 1;
+        if (listSize > rangeSize) {
+          alert("Error: range is too small to generate unique integers!");
+          return;
+        }
+
+        const uniqueSet = new Set();
+        while (uniqueSet.size < listSize) {
+          const rnd = Math.floor(Math.random() * rangeSize) + minValue;
+          uniqueSet.add(rnd);
+        }
+
+        this.initialList = [...uniqueSet];
+        this.maxOriginal = Math.max(...this.initialList);
+        this.goalList    = [...this.initialList].reverse();
+      }
+
+      /**
+       * Check for duplicates in an array
+       * @param {number[]} arr
+       * @returns {boolean}
+       */
+      _hasDuplicates(arr) {
+        return new Set(arr).size !== arr.length;
+      }
+
+      /**
+       * Split an integer at 'index' into (a, b), where b = originalValue - a.
+       * @param {number[]} currentList
+       * @param {number} index
+       * @param {number} a
+       * @returns {number[]|null} new list if valid, else null
+       */
+      split(currentList, index, a) {
+        if (index < 0 || index >= currentList.length) return null;
+
+        const originalValue = currentList[index];
+        const b = originalValue - a;
+        if (a <= 0 || b <= 0) return null;
+        if (a + b !== originalValue) return null;
+        if (a > this.maxOriginal || b > this.maxOriginal) return null;
+
+        const newList = [...currentList];
+        newList.splice(index, 1, a, b);
+
+        if (this._hasDuplicates(newList)) return null;
+        return newList;
+      }
+
+      /**
+       * Combine the integer at firstIndex with its neighbor at secondIndex
+       * @param {number[]} currentList
+       * @param {number} firstIndex
+       * @param {number} secondIndex
+       * @returns {number[]|null} new list if valid, else null
+       */
+      combine(currentList, firstIndex, secondIndex) {
+        if (firstIndex < 0 || secondIndex < 0) return null;
+        if (firstIndex >= currentList.length || secondIndex >= currentList.length) return null;
+        if (Math.abs(firstIndex - secondIndex) !== 1) return null;
+
+        const combined = currentList[firstIndex] + currentList[secondIndex];
+        if (combined > this.maxOriginal) return null;
+
+        const newList = [...currentList];
+        const minIdx = Math.min(firstIndex, secondIndex);
+        const maxIdx = Math.max(firstIndex, secondIndex);
+        newList[minIdx] = combined;
+        newList.splice(maxIdx, 1);
+
+        if (this._hasDuplicates(newList)) return null;
+        return newList;
+      }
+
+      /**
+       * Check if a list matches the goal list (the reverse of the initial)
+       * @param {number[]} list
+       * @returns {boolean}
+       */
+      isWin(list) {
+        if (!list || list.length !== this.goalList.length) return false;
+        return list.every((val, idx) => val === this.goalList[idx]);
+      }
+    }
+
+    // -------------------------------------------------
+    // UI Logic
+    // -------------------------------------------------
+
+    // DOM references
+    const listSizeInput   = document.getElementById('listSize');
+    const minValInput     = document.getElementById('minVal');
+    const maxValInput     = document.getElementById('maxVal');
+    const customListInput = document.getElementById('customList');
+    const startGameBtn    = document.getElementById('startGameBtn');
+
+    const historyContainer = document.getElementById('historyContainer');
+    const actionContainer  = document.getElementById('actionContainer');
+    const splitAInput      = document.getElementById('splitA');
+    const splitBInput      = document.getElementById('splitB');
+    const splitBtn         = document.getElementById('splitBtn');
+    const combineLeftBtn   = document.getElementById('combineLeftBtn');
+    const combineRightBtn  = document.getElementById('combineRightBtn');
+    const winMessageDiv    = document.getElementById('winMessage');
+
+    let game             = null;   // Puzzle logic & constraints
+    let gameHistory      = [];     // Array of states, each state = { list: number[] }
+    let selectedRowIndex = null;   // Which row in history is selected for an action
+    let selectedIndex    = null;   // Which integer in that row is selected
+
+    // ----------------------------------------------------------------------
+    // Parse the custom list (if provided). Return null if there's a problem.
+    // ----------------------------------------------------------------------
+    function parseCustomList(text) {
+      if (!text) return null; // if empty, let the caller decide to do random
+      const parts = text.split(',').map(s => s.trim()).filter(s => s.length > 0);
+
+      // Convert to numbers
+      const nums = parts.map(str => Number(str));
+      // Validate
+      for (let i = 0; i < nums.length; i++) {
+        if (!Number.isInteger(nums[i]) || nums[i] <= 0) {
+          alert(`Error: '${parts[i]}' is not a valid positive integer.`);
+          return null;
+        }
+      }
+      // Check uniqueness
+      const setCheck = new Set(nums);
+      if (setCheck.size !== nums.length) {
+        alert("Error: duplicate values detected in your custom list.");
+        return null;
+      }
+      return nums;
+    }
+
+    // ----------------------------------------------------------------------
+    // Start a new game on button click
+    // ----------------------------------------------------------------------
+    startGameBtn.addEventListener('click', () => {
+      const n         = parseInt(listSizeInput.value, 10);
+      const minValue  = parseInt(minValInput.value, 10);
+      const maxValue  = parseInt(maxValInput.value, 10);
+
+      if (n < 1) {
+        alert("List size must be at least 1.");
+        return;
+      }
+      if (minValue > maxValue) {
+        alert("Min value cannot be greater than Max value.");
+        return;
+      }
+
+      // If user typed a custom list, try parsing it
+      let customList = null;
+      const customText = customListInput.value.trim();
+      if (customText) {
+        customList = parseCustomList(customText);
+        if (!customList) return; // Parsing failed, don't proceed
+      }
+
+      // Create the new game
+      game = new ReverseListGame(n, minValue, maxValue, customList);
+
+      // If the game didn't have a valid initial list, stop
+      if (!game.initialList || game.initialList.length === 0) return;
+
+      // Initialize history with the first state
+      gameHistory = [{ list: [...game.initialList] }];
+
+      // Reset selections
+      selectedRowIndex = null;
+      selectedIndex    = null;
+
+      renderHistory();
+      renderUI();
+    });
+
+    // ----------------------------------------------------------------------
+    // Render the entire history of states
+    // ----------------------------------------------------------------------
+    function renderHistory() {
+      historyContainer.innerHTML = '';
+
+      gameHistory.forEach((state, rowIdx) => {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'stateRow';
+
+        // "Revert" button
+        const revertBtn = document.createElement('button');
+        revertBtn.textContent = 'Revert';
+        revertBtn.className = 'revert-button';
+        revertBtn.onclick = () => handleRevertClick(rowIdx);
+        rowDiv.appendChild(revertBtn);
+
+        // Label
+        const label = document.createElement('label');
+        label.textContent = (rowIdx === 0) ? 'Initial:' : `Move #${rowIdx}:`;
+        rowDiv.appendChild(label);
+
+        // Render buttons for each integer
+        state.list.forEach((value, idx) => {
+          const btn = document.createElement('button');
+          btn.textContent = value.toString();
+
+          // Only the last row is interactive
+          if (rowIdx === gameHistory.length - 1) {
+            btn.className = 'integer-button';
+            btn.onclick = () => handleIntegerClick(rowIdx, idx);
+          } else {
+            btn.className = 'integer-button disabled-button';
+            btn.disabled = true;
+          }
+
+          rowDiv.appendChild(btn);
+        });
+
+        historyContainer.appendChild(rowDiv);
+      });
+    }
+
+    // ----------------------------------------------------------------------
+    // "Revert" button click
+    // ----------------------------------------------------------------------
+    function handleRevertClick(rowIdx) {
+      // Cut off everything after rowIdx
+      gameHistory = gameHistory.slice(0, rowIdx + 1);
+
+      // Clear selection
+      selectedRowIndex = null;
+      selectedIndex    = null;
+
+      renderHistory();
+      renderUI();
+    }
+
+    // ----------------------------------------------------------------------
+    // Click an integer button in the most recent state row
+    // ----------------------------------------------------------------------
+    function handleIntegerClick(rowIdx, idx) {
+      if (rowIdx !== gameHistory.length - 1) return; // not the latest row
+
+      selectedRowIndex = rowIdx;
+      selectedIndex    = idx;
+      splitAInput.value = '';
+      splitBInput.value = '';
+      updateSplitB();
+
+      actionContainer.classList.remove('hidden');
+
+      // Check neighbors for combining
+      const list = gameHistory[rowIdx].list;
+      combineLeftBtn.disabled  = (idx <= 0);
+      combineRightBtn.disabled = (idx >= list.length - 1);
+    }
+
+    // ----------------------------------------------------------------------
+    // Auto-update B when A changes
+    // ----------------------------------------------------------------------
+    splitAInput.addEventListener('input', updateSplitB);
+
+    function updateSplitB() {
+      if (selectedRowIndex === null || selectedIndex === null) {
+        splitBInput.value = '';
+        return;
+      }
+
+      const currentList    = gameHistory[selectedRowIndex].list;
+      const originalValue  = currentList[selectedIndex];
+      const a              = parseInt(splitAInput.value, 10);
+
+      if (isNaN(a)) {
+        splitBInput.value = '';
+        return;
+      }
+      splitBInput.value = originalValue - a;
+    }
+
+    // ----------------------------------------------------------------------
+    // Render non-history UI (e.g., check for win)
+    // ----------------------------------------------------------------------
+    function renderUI() {
+      winMessageDiv.textContent = '';
+
+      if (gameHistory.length > 0) {
+        const currentList = gameHistory[gameHistory.length - 1].list;
+        if (game.isWin(currentList)) {
+          winMessageDiv.textContent = 'You Win!';
+        }
+      }
+
+      // Hide the action panel if there's no selection or if user has won
+      const currentList = gameHistory[gameHistory.length - 1]?.list || [];
+      const userWon     = game.isWin(currentList);
+
+      if (selectedRowIndex === null || selectedIndex === null || userWon) {
+        actionContainer.classList.add('hidden');
+      }
+    }
+
+    // ----------------------------------------------------------------------
+    // Split action
+    // ----------------------------------------------------------------------
+    splitBtn.addEventListener('click', () => {
+      if (selectedRowIndex === null || selectedIndex === null) return;
+      if (selectedRowIndex !== gameHistory.length - 1) return; // must be last row
+
+      const currentList = gameHistory[selectedRowIndex].list;
+      const aVal        = parseInt(splitAInput.value, 10);
+      const newList     = game.split(currentList, selectedIndex, aVal);
+
+      if (!newList) {
+        alert('Invalid split move! Check the rules.');
+        return;
+      }
+
+      gameHistory.push({ list: newList });
+      selectedRowIndex = null;
+      selectedIndex    = null;
+
+      renderHistory();
+      renderUI();
+    });
+
+    // ----------------------------------------------------------------------
+    // Combine with left neighbor
+    // ----------------------------------------------------------------------
+    combineLeftBtn.addEventListener('click', () => {
+      if (selectedRowIndex === null || selectedIndex === null) return;
+      if (selectedRowIndex !== gameHistory.length - 1) return; // must be last row
+
+      const currentList = gameHistory[selectedRowIndex].list;
+      const newList     = game.combine(currentList, selectedIndex, selectedIndex - 1);
+
+      if (!newList) {
+        alert('Cannot combine with left neighbor! Check the rules.');
+        return;
+      }
+
+      gameHistory.push({ list: newList });
+      selectedRowIndex = null;
+      selectedIndex    = null;
+
+      renderHistory();
+      renderUI();
+    });
+
+    // ----------------------------------------------------------------------
+    // Combine with right neighbor
+    // ----------------------------------------------------------------------
+    combineRightBtn.addEventListener('click', () => {
+      if (selectedRowIndex === null || selectedIndex === null) return;
+      if (selectedRowIndex !== gameHistory.length - 1) return; // must be last row
+
+      const currentList = gameHistory[selectedRowIndex].list;
+      const newList     = game.combine(currentList, selectedIndex, selectedIndex + 1);
+
+      if (!newList) {
+        alert('Cannot combine with right neighbor! Check the rules.');
+        return;
+      }
+
+      gameHistory.push({ list: newList });
+      selectedRowIndex = null;
+      selectedIndex    = null;
+
+      renderHistory();
+      renderUI();
+    });
+  </script>
+</body>
+</html>
