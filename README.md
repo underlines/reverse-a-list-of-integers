@@ -23,22 +23,42 @@ I'm sure there are major flaws for which I take no responsibility.
 
 ### Running
 
-I suggest using [uv](https://github.com/astral-sh/uv) (the future of python project management ;)
+I suggest using [uv](https://github.com/astral-sh/uv) (the future of python package and project management ;)
 
 1. Install uv
     - On macOS and Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
     - On Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
 
-2. Run a single script
-    ```bash
-    uv run solver.py
+2. Set up .venv python version and install dependencies
+    - This project already locked python version, but if you want to switch, run: `uv venv --python 3.13`
+    - `uv sync` installs defined python version (defined by above comment which created the `.python-version` file)
+
+3. Select the interpreter and load it as default when opening new terminals in VS Code
+    - In VS Code select `.venv\Scripts\python.exe` as the interpreter (CTRL+SHIFT+P > 'Python: Select Interpreter')
+    - Additionally add `.vscode/settings.json` to always activate the .venv when opening a new terminal window in VS Code:
+    ```json
+    {
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+        "terminal.integrated.env.linux": {
+            "VIRTUAL_ENV": "${workspaceFolder}/.venv",
+            "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
+        },
+        "terminal.integrated.env.windows": {
+            "VIRTUAL_ENV": "${workspaceFolder}/.venv",
+            "PATH": "${workspaceFolder}/.venv/Scripts:${env:PATH}"
+        }
+    }
     ```
 
-3. Create a new script
-    ```bash
-    uv add --script example.py
-    ```
+4. Execute
+    - run from console: `uv run python runner.py`
+    - or run via VS Code Run button, or Debug (if `Python Debugger` extension is installed)
+    - or run via VS Code terminal: `python runner.py`
 
-Learn more about uv:
-- Run single scripts: https://docs.astral.sh/uv/guides/scripts/
-- Run entire projects: https://docs.astral.sh/uv/guides/projects/
+To add new packages
+    - `uv add package_name`
+
+ 
+
+
+Learn more about uv: https://docs.astral.sh/uv/
