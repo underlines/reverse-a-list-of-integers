@@ -3,7 +3,7 @@ from typing import List, Tuple, Optional
 
 class PuzzleGame:
     def __init__(self, initial_list: List[int]):
-        self.initial_list = sorted(initial_list, reverse=True)
+        self.initial_list = initial_list[:]
         self.max_value = max(initial_list)
 
     def is_goal_state(self, state: List[int]) -> bool:

@@ -35,7 +35,7 @@ def run_solvers(initial_list):
             print(f"{i}: {step}")
 
 if __name__ == "__main__":
-    # initial_list = [5, 3, 9] # (optimum 4)
+    initial_list = [5, 3, 9] # (optimum 4)
     # initial_list = [3, 12, 7, 9]
-    initial_list = [4, 9, 5]
+    # initial_list = [4, 9, 5]
     run_solvers(initial_list)
